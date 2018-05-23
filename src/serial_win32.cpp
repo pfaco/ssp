@@ -56,7 +56,7 @@ namespace ssp
             }
             hserial = CreateFile(port_name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
             if (hserial == INVALID_HANDLE_VALUE) {
-                throw open_port_error{};
+                throw open_serial_error{};
             }
         }
 
@@ -141,7 +141,7 @@ namespace ssp
         auto read(unsigned timeout_ms) -> std::vector<uint8_t>
         {
             std::vector<uint8_t> retval;
-            read(timeout_millis, retval);
+            read(retval, timeout_ms);
             return retval;
         }
 
