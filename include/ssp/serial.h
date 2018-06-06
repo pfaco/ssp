@@ -36,7 +36,15 @@ namespace ssp {
     enum class baudrate : unsigned {
         _110 = 110,
         _300 = 300,
-        _9600 = 9600
+        _600 = 600,
+        _1200 = 1200,
+        _2400 = 2400,
+        _4800 = 4800,
+        _9600 = 9600,
+        _14400 = 14400,
+        _19200 = 19200,
+        _38400 = 38400,
+        _115200 = 115200,
     };
 
     enum class parity {
@@ -72,8 +80,18 @@ namespace ssp {
          * Creates a new serial port
          * @param id : identifier of the serial port to be created (eg "COM1"in windows or "tty10"in linux)
          */
-        serial_port(std::string const& id);
+        serial_port(std::string const& id,
+                    baudrate baud = baudrate::_9600,
+                    parity par = parity::NONE,
+                    databits dbits = databits::_8,
+                    stopbits sbits = stopbits::_1);
+
         ~serial_port();
+
+        void set_baud(baudrate baud);
+        void set_parity(parity par);
+        void set_databits(databits dbits);
+        void set_stopbits(stopbits sbits);
 
         /**
          * Sets the serial port parameters

@@ -27,12 +27,14 @@
 #include <ssp/serial.h>
 #include <sstream>
 #include <windows.h>
+#include <chrono>
 
 namespace ssp
 {
     class serial_port::impl
     {
         HANDLE hserial;
+        bool is_open;
 
     public:
         static auto available_ports() -> std::vector<serial_info>
@@ -46,7 +48,11 @@ namespace ssp
             return retval;
         }
 
-        impl(std::string const& id)
+        impl(std::string const& id,
+             baudrate baud,
+             parity par,
+             databits dbits,
+             stopbits sbits)
         {
             std::string long_prefix = "\\\\.\\";
             std::string prefix = "COM";
@@ -58,6 +64,7 @@ namespace ssp
             if (hserial == INVALID_HANDLE_VALUE) {
                 throw open_serial_error{};
             }
+            set_params(baud, par, dbits ,sbits);
         }
 
         ~impl()
@@ -65,13 +72,18 @@ namespace ssp
             CloseHandle(hserial); //Closing the Serial Port
         }
 
-        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits)
-        {
+        void set_baud(baudrate baud) {
             DCB dcb_params = { 0 };
             dcb_params.DCBlength = sizeof(dcb_params);
             auto status = GetCommState(hserial, &dcb_params);
             dcb_params.BaudRate = static_cast<unsigned>(baud);
+            SetCommState(hserial, &dcb_params);
+        }
 
+        void set_parity(parity par) {
+            DCB dcb_params = { 0 };
+            dcb_params.DCBlength = sizeof(dcb_params);
+            auto status = GetCommState(hserial, &dcb_params);
             switch (par) {
                 case parity::EVEN:
                     dcb_params.Parity   = EVENPARITY;
@@ -89,7 +101,13 @@ namespace ssp
                     dcb_params.Parity   = SPACEPARITY;
                     break;
             }
+            SetCommState(hserial, &dcb_params);
+        }
 
+        void set_databits(databits dbits) {
+            DCB dcb_params = { 0 };
+            dcb_params.DCBlength = sizeof(dcb_params);
+            auto status = GetCommState(hserial, &dcb_params);
             switch (dbits) {
                 case databits::_5:
                     dcb_params.ByteSize = 5;
@@ -104,7 +122,13 @@ namespace ssp
                     dcb_params.ByteSize = 8;
                     break;
             }
+            SetCommState(hserial, &dcb_params);
+        }
 
+        void set_stopbits(stopbits sbits) {
+            DCB dcb_params = { 0 };
+            dcb_params.DCBlength = sizeof(dcb_params);
+            auto status = GetCommState(hserial, &dcb_params);
             switch (sbits) {
                 case stopbits::_1:
                     dcb_params.StopBits = ONESTOPBIT;// Setting StopBits = 1
@@ -116,16 +140,25 @@ namespace ssp
                     dcb_params.StopBits = TWOSTOPBITS;// Setting StopBits = 1
                     break;
             }
+            SetCommState(hserial, &dcb_params);
+        }
+
+        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits)
+        {
+            set_baud(baud);
+            set_parity(par);
+            set_databits(dbits);
+            set_stopbits(sbits);
         }
 
         auto write(std::vector<uint8_t> const& data, need_flush f) -> size_t
         {
-            DWORD n_bytes_wrriten = 0;
-            auto status = WriteFile(hserial, &data[0], data.size(), &n_bytes_wrriten, NULL);
+            DWORD n_bytes_writen = 0;
+            auto status = WriteFile(hserial, &data[0], data.size(), &n_bytes_writen, NULL);
             if (f == need_flush::YES) {
                 flush();
             }
-            return n_bytes_wrriten;
+            return n_bytes_writen;
         }
 
         void flush()
@@ -147,7 +180,17 @@ namespace ssp
 
         void read(std::vector<uint8_t> &buffer, unsigned timeout_ms)
         {
-
+            auto start = std::chrono::steady_clock::now();
+            auto duration = std::chrono::steady_clock::now() - start;
+            uint8_t temp[128];
+            DWORD amount_read;
+            do {
+                ReadFile(hserial, temp, sizeof(temp), &amount_read, NULL);
+                for (auto i = 0; i < amount_read; ++i) {
+                    buffer.push_back(temp[i]);
+                }
+                duration = std::chrono::steady_clock::now() - start;
+            } while (amount_read == 0 && std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() < timeout_ms);
         }
 
     };
@@ -157,7 +200,11 @@ namespace ssp
         return impl::available_ports();
     }
 
-    serial_port::serial_port(std::string const& id) : m_pimpl{std::make_unique<impl>(id)} {}
+    serial_port::serial_port(std::string const& id,
+                             baudrate baud,
+                             parity par,
+                             databits dbits,
+                             stopbits sbits) : m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits)} {}
 
     serial_port::~serial_port() = default;
 

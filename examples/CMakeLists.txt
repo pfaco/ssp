@@ -1,14 +1,22 @@
-cmake_minimum_required(VERSION 3.10)
-project(ssp_demo1)
+cmake_minimum_required(VERSION 3.8)
 
-set(CMAKE_CXX_STANDARD 17)
+## Project
+project(ssp_examples)
 
+## Serial source
 if (APPLE)
-    
+    set(SSP_EXAMPLES_SERIAL_SRC ../src/serial_macos.cpp)
 elseif(UNIX)
-    add_executable(ssp_demo1 demo1.cpp ../src/serial_linux.cpp)
+    set(SSP_EXAMPLES_SERIAL_SRC ../src/serial_linux.cpp)
 else()
-    add_executable(ssp_demo1 demo1.cpp ../src/serial_win32.cpp)
+    set(SSP_EXAMPLES_SERIAL_SRC ../src/serial_win32.cpp)
 endif()
 
-include_directories(../include)
+## Targets
+add_executable(ssp_demo1 demo1.cpp ${SSP_EXAMPLES_SERIAL_SRC})
+
+## Compiler Features
+target_compile_features(ssp_demo1 PRIVATE cxx_std_14)
+
+## Includes
+target_include_directories(ssp_demo1 PRIVATE ../include)
