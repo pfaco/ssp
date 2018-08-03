@@ -29,11 +29,11 @@
 auto main() -> int {
 
     try {
-        ssp::SerialPort serial("COM10", ssp::Baudrate::_300, ssp::Parity::EVEN, ssp::Databits::_7, ssp::Stopbits::_1);
+        ssp::SerialPort serial("COM8", ssp::Baudrate::_300, ssp::Parity::EVEN, ssp::Databits::_7, ssp::Stopbits::_1);
         serial.write({0x2f, 0x3f, 0x21, 0x0d, 0x0a});
         auto data = serial.read();
         std::cout << "RX: ";
-        for (auto const& b : data) {
+        for (auto const &b : data) {
             std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << ' ';
         }
         std::cout << std::endl;

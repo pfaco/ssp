@@ -26,9 +26,6 @@ target_include_directories(${PROJECT_NAME}
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         )
 
-## Compiler Features
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_14)
-
 ## Install library
 install(TARGETS
             ${PROJECT_NAME}

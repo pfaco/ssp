@@ -33,13 +33,13 @@ namespace ssp
 
 class SerialPort::impl
 {
-    HANDLE m_hserial = NULL;
-    Baudrate m_baud;
-    Parity   m_parity;
-    Databits m_dbits;
-    Stopbits m_sbits;
-    unsigned m_timeout_ms;
-    unsigned m_inter_byte_timeout_ms = 5;
+    HANDLE hserial_ = NULL;
+    Baudrate baud_;
+    Parity   parity_;
+    Databits dbits_;
+    Stopbits sbits_;
+    unsigned timeout_ms_;
+    unsigned inter_byte_timeout_ms_ = 50;
 
 public:
     static auto available_ports() -> std::vector<SerialInfo>
@@ -57,11 +57,11 @@ public:
          Databits dbits,
          Stopbits sbits,
          unsigned timeout) :
-             m_baud{baud},
-             m_parity{par},
-             m_dbits{dbits},
-             m_sbits{sbits},
-             m_timeout_ms{timeout}
+             baud_{baud},
+             parity_{par},
+             dbits_{dbits},
+             sbits_{sbits},
+             timeout_ms_{timeout}
     {
         std::string long_prefix = R"(\\.\)";
         std::string prefix = "COM";
@@ -70,7 +70,7 @@ public:
             port_name.insert(0, long_prefix);
         }
 
-        m_hserial = CreateFile(port_name.c_str(),
+        hserial_ = CreateFile(port_name.c_str(),
                                GENERIC_READ | GENERIC_WRITE,
                                0,
                                NULL,
@@ -78,7 +78,7 @@ public:
                                FILE_ATTRIBUTE_NORMAL,
                                NULL);
 
-        if (m_hserial == INVALID_HANDLE_VALUE) {
+        if (hserial_ == INVALID_HANDLE_VALUE) {
             throw SerialErrorOpening{};
         }
 
@@ -87,53 +87,53 @@ public:
 
     ~impl()
     {
-        CloseHandle(m_hserial); //Closing the Serial Port
+        CloseHandle(hserial_); //Closing the Serial Port
     }
 
     void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
     {
-        m_baud = baud;
-        m_parity = par;
-        m_dbits = dbits;
-        m_sbits = sbits;
-        m_timeout_ms = timeout_ms;
+        baud_ = baud;
+        parity_ = par;
+        dbits_ = dbits;
+        sbits_ = sbits;
+        timeout_ms_ = timeout_ms;
         configure_port();
     }
 
     void set_baud(Baudrate baud)
     {
-        m_baud = baud;
+        baud_ = baud;
         configure_port();
     }
 
     void set_parity(Parity par)
     {
-        m_parity = par;
+        parity_ = par;
         configure_port();
     }
 
     void set_databits(Databits dbits)
     {
-        m_dbits = dbits;
+        dbits_ = dbits;
         configure_port();
     }
 
     void set_stopbits(Stopbits sbits)
     {
-        m_sbits = sbits;
+        sbits_ = sbits;
         configure_port();
     }
 
     void set_timeout(unsigned timeout_ms)
     {
-        m_timeout_ms = timeout_ms;
+        timeout_ms_ = timeout_ms;
         configure_timeout();
     }
 
     auto write(std::vector<uint8_t> const &data) -> size_t
     {
         DWORD n_bytes_writen = 0;
-        if (!WriteFile(m_hserial, &data[0], data.size(), &n_bytes_writen, NULL)) {
+        if (!WriteFile(hserial_, &data[0], data.size(), &n_bytes_writen, NULL)) {
             throw SerialErrorIO();
         }
         return static_cast<size_t>(n_bytes_writen);
@@ -142,7 +142,7 @@ public:
     auto available() -> size_t
     {
         COMSTAT comstat;
-        if (!ClearCommError(m_hserial, NULL, &comstat)) {
+        if (!ClearCommError(hserial_, NULL, &comstat)) {
             throw SerialErrorIO();
         }
         return comstat.cbInQue;
@@ -160,7 +160,7 @@ public:
         uint8_t temp[512];
         DWORD amount_read;
 
-        if (!ReadFile(m_hserial, temp, sizeof(temp), &amount_read, NULL)) {
+        if (!ReadFile(hserial_, temp, sizeof(temp), &amount_read, NULL)) {
             throw SerialErrorIO();
         }
 
@@ -173,15 +173,15 @@ private:
     void configure_timeout()
     {
         COMMTIMEOUTS com_timeout = {0};
-        if (!GetCommTimeouts(m_hserial,&com_timeout)) {
+        if (!GetCommTimeouts(hserial_,&com_timeout)) {
             throw SerialErrorConfig();
         }
 
-        com_timeout.ReadIntervalTimeout = m_inter_byte_timeout_ms;
-        com_timeout.ReadTotalTimeoutConstant = m_timeout_ms;
+        com_timeout.ReadIntervalTimeout = inter_byte_timeout_ms_;
+        com_timeout.ReadTotalTimeoutConstant = timeout_ms_;
         com_timeout.ReadTotalTimeoutMultiplier = 0;
 
-        if (!SetCommTimeouts(m_hserial, &com_timeout)) {
+        if (!SetCommTimeouts(hserial_, &com_timeout)) {
             throw SerialErrorConfig();
         }
     }
@@ -190,7 +190,7 @@ private:
     {
         DCB dcb_params = {0};
         dcb_params.DCBlength = sizeof(dcb_params);
-        if (!GetCommState(m_hserial, &dcb_params)) {
+        if (!GetCommState(hserial_, &dcb_params)) {
             throw SerialErrorConfig();
         }
 
@@ -199,13 +199,13 @@ private:
         dcb_params.fOutX = false;
         dcb_params.fInX = false;
 
-        dcb_params.BaudRate = static_cast<unsigned>(m_baud);
-        m_inter_byte_timeout_ms= static_cast<unsigned>(m_baud)/8;
-        m_inter_byte_timeout_ms = 1200/m_inter_byte_timeout_ms;
-        m_inter_byte_timeout_ms = m_inter_byte_timeout_ms < 5 ? 5 : m_inter_byte_timeout_ms;
+        dcb_params.BaudRate = static_cast<unsigned>(baud_);
+        inter_byte_timeout_ms_= static_cast<unsigned>(baud_)/8;
+        inter_byte_timeout_ms_ = 1200/inter_byte_timeout_ms_;
+        inter_byte_timeout_ms_ = inter_byte_timeout_ms_ < 50 ? 50 : inter_byte_timeout_ms_;
         configure_timeout();
 
-        switch (m_parity) {
+        switch (parity_) {
             case Parity::EVEN:
                 dcb_params.Parity = EVENPARITY;
                 break;
@@ -223,7 +223,7 @@ private:
                 break;
         }
 
-        switch (m_dbits) {
+        switch (dbits_) {
             case Databits::_5:
                 dcb_params.ByteSize = 5;
                 break;
@@ -238,7 +238,7 @@ private:
                 break;
         }
 
-        switch (m_sbits) {
+        switch (sbits_) {
             case Stopbits::_1:
                 dcb_params.StopBits = ONESTOPBIT;
                 break;
@@ -250,7 +250,7 @@ private:
                 break;
         }
 
-        if (!SetCommState(m_hserial, &dcb_params)) {
+        if (!SetCommState(hserial_, &dcb_params)) {
             throw SerialErrorConfig();
         }
     }
@@ -263,58 +263,58 @@ auto SerialPort::available_ports() -> std::vector<SerialInfo>
 }
 
 SerialPort::SerialPort(std::string const &id, Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms) :
-                         m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits, timeout_ms)} {};
+                         pimpl_{std::make_unique<impl>(id, baud, par, dbits, sbits, timeout_ms)} {};
 
 SerialPort::~SerialPort() = default;
 
 void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
 {
-    m_pimpl->set_params(baud, par, dbits, sbits, timeout_ms);
+    pimpl_->set_params(baud, par, dbits, sbits, timeout_ms);
 }
 
 auto SerialPort::write(std::vector<uint8_t> const &data) -> size_t
 {
-    return m_pimpl->write(data);
+    return pimpl_->write(data);
 }
 
 auto SerialPort::available() -> size_t
 {
-    return m_pimpl->available();
+    return pimpl_->available();
 }
 
 auto SerialPort::read() -> std::vector<uint8_t>
 {
-    return m_pimpl->read();
+    return pimpl_->read();
 }
 
 void SerialPort::read(std::vector<uint8_t> &buffer)
 {
-    m_pimpl->read(buffer);
+    pimpl_->read(buffer);
 }
 
 void SerialPort::set_baud(Baudrate baud)
 {
-    m_pimpl->set_baud(baud);
+    pimpl_->set_baud(baud);
 }
 
 void SerialPort::set_parity(Parity par)
 {
-    m_pimpl->set_parity(par);
+    pimpl_->set_parity(par);
 }
 
 void SerialPort::set_databits(Databits dbits)
 {
-    m_pimpl->set_databits(dbits);
+    pimpl_->set_databits(dbits);
 }
 
 void SerialPort::set_stopbits(Stopbits sbits)
 {
-    m_pimpl->set_stopbits(sbits);
+    pimpl_->set_stopbits(sbits);
 }
 
 void SerialPort::set_timeout(unsigned timeout_ms)
 {
-    m_pimpl->set_timeout(timeout_ms);
+    pimpl_->set_timeout(timeout_ms);
 }
 
 }
