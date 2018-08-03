@@ -27,215 +27,294 @@
 #include <ssp/serial.h>
 #include <sstream>
 #include <windows.h>
-#include <chrono>
 
 namespace ssp
 {
-    class serial_port::impl
+
+class SerialPort::impl
+{
+    HANDLE m_hserial = NULL;
+    Baudrate m_baud;
+    Parity   m_parity;
+    Databits m_dbits;
+    Stopbits m_sbits;
+    unsigned m_timeout_ms;
+    unsigned m_inter_byte_timeout_ms = 5;
+
+public:
+    static auto available_ports() -> std::vector<SerialInfo>
     {
-        HANDLE hserial;
-        bool is_open;
-
-    public:
-        static auto available_ports() -> std::vector<serial_info>
-        {
-            std::vector<serial_info> retval;
-
-            for (unsigned i = 0; i <= 255; ++i) {
-
-            }
-
-            return retval;
-        }
-
-        impl(std::string const& id,
-             baudrate baud,
-             parity par,
-             databits dbits,
-             stopbits sbits)
-        {
-            std::string long_prefix = "\\\\.\\";
-            std::string prefix = "COM";
-            std::string port_name = id;
-            if (id.compare(0, prefix.size(), prefix) && id.size() > 4) {
-                port_name.insert(0, long_prefix);
-            }
-            hserial = CreateFile(port_name.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-            if (hserial == INVALID_HANDLE_VALUE) {
-                throw open_serial_error{};
-            }
-            set_params(baud, par, dbits ,sbits);
-        }
-
-        ~impl()
-        {
-            CloseHandle(hserial); //Closing the Serial Port
-        }
-
-        void set_baud(baudrate baud) {
-            DCB dcb_params = { 0 };
-            dcb_params.DCBlength = sizeof(dcb_params);
-            auto status = GetCommState(hserial, &dcb_params);
-            dcb_params.BaudRate = static_cast<unsigned>(baud);
-            SetCommState(hserial, &dcb_params);
-        }
-
-        void set_parity(parity par) {
-            DCB dcb_params = { 0 };
-            dcb_params.DCBlength = sizeof(dcb_params);
-            auto status = GetCommState(hserial, &dcb_params);
-            switch (par) {
-                case parity::EVEN:
-                    dcb_params.Parity   = EVENPARITY;
-                    break;
-                case parity::ODD:
-                    dcb_params.Parity   = ODDPARITY;
-                    break;
-                case parity::NONE:
-                    dcb_params.Parity   = NOPARITY;
-                    break;
-                case parity::MARK:
-                    dcb_params.Parity   = MARKPARITY;
-                    break;
-                case parity::SPACE:
-                    dcb_params.Parity   = SPACEPARITY;
-                    break;
-            }
-            SetCommState(hserial, &dcb_params);
-        }
-
-        void set_databits(databits dbits) {
-            DCB dcb_params = { 0 };
-            dcb_params.DCBlength = sizeof(dcb_params);
-            auto status = GetCommState(hserial, &dcb_params);
-            switch (dbits) {
-                case databits::_5:
-                    dcb_params.ByteSize = 5;
-                    break;
-                case databits::_6:
-                    dcb_params.ByteSize = 6;
-                    break;
-                case databits::_7:
-                    dcb_params.ByteSize = 7;
-                    break;
-                case databits::_8:
-                    dcb_params.ByteSize = 8;
-                    break;
-            }
-            SetCommState(hserial, &dcb_params);
-        }
-
-        void set_stopbits(stopbits sbits) {
-            DCB dcb_params = { 0 };
-            dcb_params.DCBlength = sizeof(dcb_params);
-            auto status = GetCommState(hserial, &dcb_params);
-            switch (sbits) {
-                case stopbits::_1:
-                    dcb_params.StopBits = ONESTOPBIT;// Setting StopBits = 1
-                    break;
-                case stopbits::_1POINT5:
-                    dcb_params.StopBits = ONE5STOPBITS;// Setting StopBits = 1
-                    break;
-                case stopbits::_2:
-                    dcb_params.StopBits = TWOSTOPBITS;// Setting StopBits = 1
-                    break;
-            }
-            SetCommState(hserial, &dcb_params);
-        }
-
-        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits)
-        {
-            set_baud(baud);
-            set_parity(par);
-            set_databits(dbits);
-            set_stopbits(sbits);
-        }
-
-        auto write(std::vector<uint8_t> const& data, need_flush f) -> size_t
-        {
-            DWORD n_bytes_writen = 0;
-            auto status = WriteFile(hserial, &data[0], data.size(), &n_bytes_writen, NULL);
-            if (f == need_flush::YES) {
-                flush();
-            }
-            return n_bytes_writen;
-        }
-
-        void flush()
-        {
+        std::vector<SerialInfo> retval;
+        for (unsigned i = 0; i <= 255; ++i) {
 
         }
-
-        auto available() -> size_t
-        {
-
-        }
-
-        auto read(unsigned timeout_ms) -> std::vector<uint8_t>
-        {
-            std::vector<uint8_t> retval;
-            read(retval, timeout_ms);
-            return retval;
-        }
-
-        void read(std::vector<uint8_t> &buffer, unsigned timeout_ms)
-        {
-            auto start = std::chrono::steady_clock::now();
-            auto duration = std::chrono::steady_clock::now() - start;
-            uint8_t temp[128];
-            DWORD amount_read;
-            do {
-                ReadFile(hserial, temp, sizeof(temp), &amount_read, NULL);
-                for (auto i = 0; i < amount_read; ++i) {
-                    buffer.push_back(temp[i]);
-                }
-                duration = std::chrono::steady_clock::now() - start;
-            } while (amount_read == 0 && std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() < timeout_ms);
-        }
-
-    };
-
-    auto serial_port::available_ports() -> std::vector<serial_info>
-    {
-        return impl::available_ports();
+        return retval;
     }
 
-    serial_port::serial_port(std::string const& id,
-                             baudrate baud,
-                             parity par,
-                             databits dbits,
-                             stopbits sbits) : m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits)} {}
-
-    serial_port::~serial_port() = default;
-
-    void serial_port::set_params(baudrate baud, parity par, databits dbits, stopbits sbits)
+    impl(std::string const &id,
+         Baudrate baud,
+         Parity par,
+         Databits dbits,
+         Stopbits sbits,
+         unsigned timeout) :
+             m_baud{baud},
+             m_parity{par},
+             m_dbits{dbits},
+             m_sbits{sbits},
+             m_timeout_ms{timeout}
     {
-        m_pimpl->set_params(baud, par, dbits, sbits);
+        std::string long_prefix = R"(\\.\)";
+        std::string prefix = "COM";
+        std::string port_name = id;
+        if ( (id.compare(0, prefix.size(), prefix) == 0) && (id.size() > 4) ) {
+            port_name.insert(0, long_prefix);
+        }
+
+        m_hserial = CreateFile(port_name.c_str(),
+                               GENERIC_READ | GENERIC_WRITE,
+                               0,
+                               NULL,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               NULL);
+
+        if (m_hserial == INVALID_HANDLE_VALUE) {
+            throw SerialErrorOpening{};
+        }
+
+        configure_port();
     }
 
-    auto serial_port::write(std::vector<uint8_t> const& data, need_flush f) -> size_t
+    ~impl()
     {
-        return m_pimpl->write(data, f);
+        CloseHandle(m_hserial); //Closing the Serial Port
     }
 
-    void serial_port::flush()
+    void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
     {
-        m_pimpl->flush();
+        m_baud = baud;
+        m_parity = par;
+        m_dbits = dbits;
+        m_sbits = sbits;
+        m_timeout_ms = timeout_ms;
+        configure_port();
     }
 
-    auto serial_port::available() -> size_t
+    void set_baud(Baudrate baud)
     {
-        return m_pimpl->available();
+        m_baud = baud;
+        configure_port();
     }
 
-    auto serial_port::read(unsigned timeout_ms) -> std::vector<uint8_t>
+    void set_parity(Parity par)
     {
-        return m_pimpl->read(timeout_ms);
+        m_parity = par;
+        configure_port();
     }
 
-    void serial_port::read(std::vector<uint8_t> &buffer, unsigned timeout_ms)
+    void set_databits(Databits dbits)
     {
-        m_pimpl->read(buffer, timeout_ms);
+        m_dbits = dbits;
+        configure_port();
     }
+
+    void set_stopbits(Stopbits sbits)
+    {
+        m_sbits = sbits;
+        configure_port();
+    }
+
+    void set_timeout(unsigned timeout_ms)
+    {
+        m_timeout_ms = timeout_ms;
+        configure_timeout();
+    }
+
+    auto write(std::vector<uint8_t> const &data) -> size_t
+    {
+        DWORD n_bytes_writen = 0;
+        if (!WriteFile(m_hserial, &data[0], data.size(), &n_bytes_writen, NULL)) {
+            throw SerialErrorIO();
+        }
+        return static_cast<size_t>(n_bytes_writen);
+    }
+
+    auto available() -> size_t
+    {
+        COMSTAT comstat;
+        if (!ClearCommError(m_hserial, NULL, &comstat)) {
+            throw SerialErrorIO();
+        }
+        return comstat.cbInQue;
+    }
+
+    auto read() -> std::vector<uint8_t>
+    {
+        std::vector<uint8_t> retval;
+        read(retval);
+        return retval;
+    }
+
+    void read(std::vector<uint8_t> &buffer)
+    {
+        uint8_t temp[512];
+        DWORD amount_read;
+
+        if (!ReadFile(m_hserial, temp, sizeof(temp), &amount_read, NULL)) {
+            throw SerialErrorIO();
+        }
+
+        for (auto i = 0; i < amount_read; ++i) {
+            buffer.push_back(temp[i]);
+        }
+    }
+
+private:
+    void configure_timeout()
+    {
+        COMMTIMEOUTS com_timeout = {0};
+        if (!GetCommTimeouts(m_hserial,&com_timeout)) {
+            throw SerialErrorConfig();
+        }
+
+        com_timeout.ReadIntervalTimeout = m_inter_byte_timeout_ms;
+        com_timeout.ReadTotalTimeoutConstant = m_timeout_ms;
+        com_timeout.ReadTotalTimeoutMultiplier = 0;
+
+        if (!SetCommTimeouts(m_hserial, &com_timeout)) {
+            throw SerialErrorConfig();
+        }
+    }
+
+    void configure_port()
+    {
+        DCB dcb_params = {0};
+        dcb_params.DCBlength = sizeof(dcb_params);
+        if (!GetCommState(m_hserial, &dcb_params)) {
+            throw SerialErrorConfig();
+        }
+
+        dcb_params.fOutxCtsFlow = false;
+        dcb_params.fRtsControl = 0x00;
+        dcb_params.fOutX = false;
+        dcb_params.fInX = false;
+
+        dcb_params.BaudRate = static_cast<unsigned>(m_baud);
+        m_inter_byte_timeout_ms= static_cast<unsigned>(m_baud)/8;
+        m_inter_byte_timeout_ms = 1200/m_inter_byte_timeout_ms;
+        m_inter_byte_timeout_ms = m_inter_byte_timeout_ms < 5 ? 5 : m_inter_byte_timeout_ms;
+        configure_timeout();
+
+        switch (m_parity) {
+            case Parity::EVEN:
+                dcb_params.Parity = EVENPARITY;
+                break;
+            case Parity::ODD:
+                dcb_params.Parity = ODDPARITY;
+                break;
+            case Parity::NONE:
+                dcb_params.Parity = NOPARITY;
+                break;
+            case Parity::MARK:
+                dcb_params.Parity = MARKPARITY;
+                break;
+            case Parity::SPACE:
+                dcb_params.Parity = SPACEPARITY;
+                break;
+        }
+
+        switch (m_dbits) {
+            case Databits::_5:
+                dcb_params.ByteSize = 5;
+                break;
+            case Databits::_6:
+                dcb_params.ByteSize = 6;
+                break;
+            case Databits::_7:
+                dcb_params.ByteSize = 7;
+                break;
+            case Databits::_8:
+                dcb_params.ByteSize = 8;
+                break;
+        }
+
+        switch (m_sbits) {
+            case Stopbits::_1:
+                dcb_params.StopBits = ONESTOPBIT;
+                break;
+            case Stopbits::_1POINT5:
+                dcb_params.StopBits = ONE5STOPBITS;
+                break;
+            case Stopbits::_2:
+                dcb_params.StopBits = TWOSTOPBITS;
+                break;
+        }
+
+        if (!SetCommState(m_hserial, &dcb_params)) {
+            throw SerialErrorConfig();
+        }
+    }
+
+};
+
+auto SerialPort::available_ports() -> std::vector<SerialInfo>
+{
+    return impl::available_ports();
+}
+
+SerialPort::SerialPort(std::string const &id, Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms) :
+                         m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits, timeout_ms)} {};
+
+SerialPort::~SerialPort() = default;
+
+void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
+{
+    m_pimpl->set_params(baud, par, dbits, sbits, timeout_ms);
+}
+
+auto SerialPort::write(std::vector<uint8_t> const &data) -> size_t
+{
+    return m_pimpl->write(data);
+}
+
+auto SerialPort::available() -> size_t
+{
+    return m_pimpl->available();
+}
+
+auto SerialPort::read() -> std::vector<uint8_t>
+{
+    return m_pimpl->read();
+}
+
+void SerialPort::read(std::vector<uint8_t> &buffer)
+{
+    m_pimpl->read(buffer);
+}
+
+void SerialPort::set_baud(Baudrate baud)
+{
+    m_pimpl->set_baud(baud);
+}
+
+void SerialPort::set_parity(Parity par)
+{
+    m_pimpl->set_parity(par);
+}
+
+void SerialPort::set_databits(Databits dbits)
+{
+    m_pimpl->set_databits(dbits);
+}
+
+void SerialPort::set_stopbits(Stopbits sbits)
+{
+    m_pimpl->set_stopbits(sbits);
+}
+
+void SerialPort::set_timeout(unsigned timeout_ms)
+{
+    m_pimpl->set_timeout(timeout_ms);
+}
 
 }

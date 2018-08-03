@@ -35,16 +35,20 @@
 
 namespace ssp
 {
-    struct serial_port::impl {
+    struct SerialPort::impl {
 
         int fd; //file descriptor
 
-        impl(std::string const& id)
+        impl(std::string const &id,
+             Baudrate baud,
+             Parity par,
+             Databits dbits,
+             Stopbits sbits)
         {
             if ((fd = open(id.c_str(), O_RDWR | O_NOCTTY)) < 0) {
-                throw open_serial_error();
+                throw SerialErrorOpening();
             }
-            set_params(baudrate::_9600, parity::NONE, databits::_8, stopbits::_1);
+            set_params(Baudrate::_9600, Parity::NONE, Databits::_8, Stopbits::_1);
             flush();
         }
 
@@ -53,13 +57,13 @@ namespace ssp
             close(fd);
         }
 
-        static auto available_ports() -> std::vector<serial_info>
+        static auto available_ports() -> std::vector<SerialInfo>
         {
-            std::vector<serial_info> retval;
+            std::vector<SerialInfo> retval;
             return retval;
         }
 
-        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits)
+        void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits)
         {
             struct termios params;
             memset(&params, 0, sizeof(params));
@@ -77,53 +81,53 @@ namespace ssp
             params.c_oflag = 0; //raw output
 
             switch(baud) {
-                case baudrate::_110:
+                case Baudrate::_110:
                     params.c_cflag |= B110;
                     break;
-                case baudrate::_300:
+                case Baudrate::_300:
                     params.c_cflag |= B300;
                     break;
-                case baudrate::_9600:
+                case Baudrate::_9600:
                     params.c_cflag |= B9600;
                     break;
             }
 
             switch (par) {
-                case parity::NONE:
+                case Parity::NONE:
                     params.c_cflag &= ~PARENB;
                     break;
-                case parity::EVEN:
+                case Parity::EVEN:
                     params.c_cflag |= PARENB;
                     break;
-                case parity::ODD:
+                case Parity::ODD:
                     params.c_cflag |= PARENB;
                     params.c_cflag |= PARODD;
                     break;
             }
 
             switch (dbits) {
-                case databits::_5:
+                case Databits::_5:
                     params.c_cflag |= CS5;
                     break;
-                case databits::_6:
+                case Databits::_6:
                     params.c_cflag |= CS6;
                     break;
-                case databits::_7:
+                case Databits::_7:
                     params.c_cflag |= CS7;
                     break;
-                case databits::_8:
+                case Databits::_8:
                     params.c_cflag |= CS8;
                     break;
             }
 
             switch (sbits) {
-                case stopbits::_1:
+                case Stopbits::_1:
                     params.c_cflag &= ~CSTOPB;
                     break;
-                case stopbits::_1POINT5:
+                case Stopbits::_1POINT5:
                     params.c_cflag |= CSTOPB;
                     break;
-                case stopbits::_2:
+                case Stopbits::_2:
                     params.c_cflag |= CSTOPB;
                     break;
             }
@@ -131,10 +135,10 @@ namespace ssp
             tcsetattr(fd, TCSANOW, &params);
         }
 
-        auto write(std::vector<uint8_t> const &data, need_flush f) -> size_t
+        auto write(std::vector<uint8_t> const &data, NeedFlush f) -> size_t
         {
             ::write(fd, data.data(), data.size());
-            if (f == need_flush::YES) {
+            if (f == NeedFlush::YES) {
                 flush();
             }
             return 0;
@@ -166,30 +170,31 @@ namespace ssp
 
     };
 
-    auto serial_port::available_ports() -> std::vector<serial_info> {
-        return serial_port::impl::available_ports();
+    auto SerialPort::available_ports() -> std::vector<SerialInfo> {
+        return SerialPort::impl::available_ports();
     }
 
-    serial_port::serial_port(std::string const& id) : m_pimpl{std::make_unique<serial_port::impl>(id)} {}
-    serial_port::~serial_port()  = default;
+    SerialPort::SerialPort(std::string const &id, Baudrate baud, Parity par, Databits dbits, Stopbits sbits) :
+        m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits)} {};
+    SerialPort::~SerialPort()  = default;
 
-    void serial_port::set_params(baudrate baud, parity par, databits dbits, stopbits sbits) {
+    void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits) {
         m_pimpl->set_params(baud, par, dbits, sbits);
     }
 
-    auto serial_port::write(std::vector<uint8_t> const& data, need_flush f) -> size_t {
+    auto SerialPort::write(std::vector<uint8_t> const& data, NeedFlush f) -> size_t {
         return m_pimpl->write(data, f);
     }
 
-    void serial_port::flush() {
+    void SerialPort::flush() {
         m_pimpl->flush();
     }
 
-    auto serial_port::read(unsigned int timeout_ms) -> std::vector<uint8_t> {
+    auto SerialPort::read(unsigned int timeout_ms) -> std::vector<uint8_t> {
         return m_pimpl->read(timeout_ms);
     }
 
-    void serial_port::read(std::vector<uint8_t> &buffer, unsigned int timeout_ms) {
+    void SerialPort::read(std::vector<uint8_t> &buffer, unsigned int timeout_ms) {
         m_pimpl->read(buffer, timeout_ms);
     }
 

@@ -28,15 +28,15 @@
 
 namespace ssp
 {
-    struct serial_port::impl {
+    struct SerialPort::impl {
 
-        static auto available_ports() -> std::vector<serial_info> {
-            std::vector<serial_info> retval;
+        static auto available_ports() -> std::vector<SerialInfo> {
+            std::vector<SerialInfo> retval;
             //TODO
             return retval;
         }
 
-        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits) {
+        void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits) {
             //TODO
         }
 
@@ -64,30 +64,30 @@ namespace ssp
 
     };
 
-    auto serial_port::available_ports() -> std::vector<serial_info> {
-        return serial_port::impl::available_ports();
+    auto SerialPort::available_ports() -> std::vector<SerialInfo> {
+        return SerialPort::impl::available_ports();
     }
 
-    serial_port::serial_port(std::string const& id) : m_pimpl{std::make_unique<serial_port::impl>(id)} {}
-    serial_port::~serial_port()  = default;
+    SerialPort::SerialPort(std::string const& id) : m_pimpl{std::make_unique<SerialPort::impl>(id)} {}
+    SerialPort::~SerialPort()  = default;
 
-    void serial_port::set_params(baudrate baud, parity par, databits dbits, stopbits sbits) {
+    void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits) {
         m_pimpl->set_params(baud, par, dbits, sbits);
     }
 
-    auto serial_port::write(std::vector<uint8_t> const &data, need_flush f) -> size_t {
+    auto SerialPort::write(std::vector<uint8_t> const &data, need_flush f) -> size_t {
         return m_pimpl->write(data, f);
     }
 
-    void serial_port::flush() {
+    void SerialPort::flush() {
         m_pimpl->flush();
     }
 
-    auto serial_port::read(unsigned int timeout_ms) -> std::vector<uint8_t> {
+    auto SerialPort::read(unsigned int timeout_ms) -> std::vector<uint8_t> {
         return m_pimpl->read(timeout_ms);
     }
 
-    void serial_port::read(std::vector<uint8_t> &buffer, unsigned int timeout_ms) {
+    void SerialPort::read(std::vector<uint8_t> &buffer, unsigned int timeout_ms) {
         m_pimpl->read(buffer, timeout_ms);
     }
 

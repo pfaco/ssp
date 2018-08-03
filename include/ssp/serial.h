@@ -24,136 +24,175 @@
 
 ///@file
 
-#ifndef SIMPLE_SERIAL_PORT_SERIAL_H
-#define SIMPLE_SERIAL_PORT_SERIAL_H
+#ifndef SIMPLE_SerialPort_SERIAL_H
+#define SIMPLE_SerialPort_SERIAL_H
 
 #include <string>
 #include <vector>
 #include <memory>
 
-namespace ssp {
+namespace ssp
+{
 
-    enum class baudrate : unsigned {
-        _110 = 110,
-        _300 = 300,
-        _600 = 600,
-        _1200 = 1200,
-        _2400 = 2400,
-        _4800 = 4800,
-        _9600 = 9600,
-        _14400 = 14400,
-        _19200 = 19200,
-        _38400 = 38400,
-        _115200 = 115200,
-    };
+enum class Baudrate : unsigned
+{
+    _110 = 110,
+    _300 = 300,
+    _600 = 600,
+    _1200 = 1200,
+    _2400 = 2400,
+    _4800 = 4800,
+    _9600 = 9600,
+    _14400 = 14400,
+    _19200 = 19200,
+    _38400 = 38400,
+    _115200 = 115200,
+};
 
-    enum class parity {
-        NONE, ODD, EVEN, MARK, SPACE
-    };
+enum class Parity
+{
+    NONE,
+    ODD,
+    EVEN,
+    MARK,
+    SPACE
+};
 
-    enum class databits {
-        _5, _6, _7, _8
-    };
+enum class Databits
+{
+    _5,
+    _6,
+    _7,
+    _8
+};
 
-    enum class stopbits {
-        _1, _1POINT5, _2
-    };
+enum class Stopbits
+{
+    _1,
+    _1POINT5,
+    _2
+};
 
-    enum class need_flush {
-        NO, YES
-    };
+struct SerialInfo
+{
+    std::string id;
+};
 
-    struct serial_info {
-        std::string id;
-    };
+class SerialPort
+{
+public:
 
-    class serial_port {
-    public:
+    /**
+     * Gets the list of available ports
+     * @return vector with list of ports identifiers
+     */
+    static auto available_ports() -> std::vector<SerialInfo>;
 
-        /**
-         * Gets the list of available ports
-         * @return vector with list of ports identifiers
-         */
-        static auto available_ports() -> std::vector<serial_info>;
+    /**
+     * Creates a new serial port
+     * @param id : identifier of the serial port to be created (eg "COM1"in windows or "tty10"in linux)
+     */
+    explicit SerialPort(std::string const &id,
+                Baudrate baud = Baudrate::_9600,
+                Parity par = Parity::NONE,
+                Databits dbits = Databits::_8,
+                Stopbits sbits = Stopbits::_1,
+                unsigned timeout_ms = 5000);
 
-        /**
-         * Creates a new serial port
-         * @param id : identifier of the serial port to be created (eg "COM1"in windows or "tty10"in linux)
-         */
-        serial_port(std::string const& id,
-                    baudrate baud = baudrate::_9600,
-                    parity par = parity::NONE,
-                    databits dbits = databits::_8,
-                    stopbits sbits = stopbits::_1);
+    ~SerialPort();
 
-        ~serial_port();
+    void set_baud(Baudrate baud);
 
-        void set_baud(baudrate baud);
-        void set_parity(parity par);
-        void set_databits(databits dbits);
-        void set_stopbits(stopbits sbits);
+    void set_parity(Parity par);
 
-        /**
-         * Sets the serial port parameters
-         * @param baud : baudrate in bits/sercond
-         * @param par : parity type
-         * @param dbits : number of data bits
-         * @param sbits : number of stop bits
-         */
-        void set_params(baudrate baud, parity par, databits dbits, stopbits sbits);
+    void set_databits(Databits dbits);
 
-        /**
-         * Writes the contents of the data vector into the serial port
-         * @param data : vector containing the data to be written
-         * @return the number of bytes effectevely written
-         */
-        auto write(std::vector<uint8_t> const& data, need_flush f = need_flush::YES) -> size_t;
+    void set_stopbits(Stopbits sbits);
 
-        /**
-         * Flushes the output buffer
-         */
-        void flush();
+    void set_timeout(unsigned timeout_ms);
 
-        /**
-         * Get the number of available bytes for reading
-         * @return the number of available bytes
-         */
-        auto available() -> size_t;
+    /**
+     * Sets the serial port parameters
+     * @param baud : Baudrate in bits/sercond
+     * @param par : Parity type
+     * @param dbits : number of data bits
+     * @param sbits : number of stop bits
+     */
+    void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms);
 
-        /**
-         *
-         * @param timeout_millis
-         * @return
-         */
-        auto read(unsigned timeout_ms = 0) -> std::vector<uint8_t>;
+    /**
+     * Writes the contents of the data vector into the serial port
+     * @param data : vector containing the data to be written
+     * @return the number of bytes effectevely written
+     */
+    auto write(std::vector<uint8_t> const &data) -> size_t;
 
-        /**
-         *
-         * @param buffer
-         * @param timeout_millis
-         */
-        void read(std::vector<uint8_t>& buffer, unsigned timeout_ms = 0);
+    /**
+     * Flushes the output buffer
+     */
+    void flush();
 
+    /**
+     * Get the number of available bytes for reading
+     * @return the number of available bytes
+     */
+    auto available() -> size_t;
 
-    private:
-        class impl;
-        std::unique_ptr<impl> m_pimpl;
-    };
+    /**
+     *
+     * @param timeout_millis
+     * @return
+     */
+    auto read() -> std::vector<uint8_t>;
 
-    class open_serial_error : public std::exception {
-    public:
-        const char* what() const throw() {
-            return "error while trying to open serial port";
-        }
-    };
+    /**
+     *
+     * @param buffer
+     * @param timeout_millis
+     */
+    void read(std::vector<uint8_t> &buffer);
 
-    class serial_io_error : public std::exception {
-    public:
-        const char* what() const throw() {
-            return "io error in serial port operation";
-        }
-    };
+private:
+    class impl;
+    std::unique_ptr<impl> m_pimpl;
+};
+
+class SerialErrorOpening : public std::exception
+{
+public:
+    const char* what() const throw()
+    {
+        return "error opening serial port";
+    }
+};
+
+class SerialErrorIO : public std::exception
+{
+public:
+    const char* what() const throw()
+    {
+        return "IO error in serial port operation";
+    }
+};
+
+class SerialErrorNotOpen : public std::exception
+{
+public:
+    const char* what() const throw()
+    {
+        return "serial port is not open";
+    }
+};
+
+class SerialErrorConfig : public std::exception
+{
+public:
+    const char* what() const throw()
+    {
+        return "error while configuring serial port";
+    }
+};
 
 }
 
-#endif //SIMPLE_SERIAL_PORT_SERIAL_H
+#endif //SIMPLE_SerialPort_SERIAL_H

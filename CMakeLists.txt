@@ -7,7 +7,9 @@ project(ssp VERSION 0.1.0 LANGUAGES CXX)
 add_subdirectory(examples)
 
 ## Target library
-if (APPLE)
+if(PLATFORM_IS_CYGWIN)
+    add_library(${PROJECT_NAME} src/serial_win32.cpp)
+elseif (APPLE)
     add_library(${PROJECT_NAME} src/serial_macos.cpp)
 elseif(UNIX)
     add_library(${PROJECT_NAME} src/serial_linux.cpp)

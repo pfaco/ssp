@@ -29,17 +29,20 @@
 auto main() -> int {
 
     try {
-        //ssp::serial_port serial("/dev/pts/3");
-        ssp::serial_port serial("COM8", ssp::baudrate::_300, ssp::parity::EVEN, ssp::databits::_7, ssp::stopbits::_1);
+        ssp::SerialPort serial("COM10", ssp::Baudrate::_300, ssp::Parity::EVEN, ssp::Databits::_7, ssp::Stopbits::_1);
         serial.write({0x2f, 0x3f, 0x21, 0x0d, 0x0a});
         auto data = serial.read();
         std::cout << "RX: ";
         for (auto const& b : data) {
             std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << ' ';
         }
-    } catch (ssp::open_serial_error const& e) {
+        std::cout << std::endl;
+        std::cout << "program finished.";
+    } catch (ssp::SerialErrorOpening const& e) {
         std::cout << e.what() << std::endl;
-    } catch (ssp::serial_io_error const& e) {
+    } catch (ssp::SerialErrorIO const& e) {
+        std::cout << e.what() << std::endl;
+    } catch (ssp::SerialErrorNotOpen const& e) {
         std::cout << e.what() << std::endl;
     } catch (...) {
         std::cout << "unexpected exception" << std::endl;
