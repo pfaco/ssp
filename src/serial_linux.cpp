@@ -38,23 +38,34 @@ namespace ssp
     struct SerialPort::impl {
 
         int fd; //file descriptor
+        unsigned timeout_ms_;
+        std::function<void(const std::vector<uint8_t>&)> rx_listener = nullptr;
+        std::function<void(const std::vector<uint8_t>&)> tx_listener = nullptr;
 
         impl(std::string const &id,
              Baudrate baud,
              Parity par,
              Databits dbits,
-             Stopbits sbits)
+             Stopbits sbits,
+             unsigned timeout_ms)
         {
             if ((fd = open(id.c_str(), O_RDWR | O_NOCTTY)) < 0) {
                 throw SerialErrorOpening();
             }
-            set_params(Baudrate::_9600, Parity::NONE, Databits::_8, Stopbits::_1);
-            flush();
+            set_params(Baudrate::_9600, Parity::NONE, Databits::_8, Stopbits::_1, timeout_ms);
         }
 
         ~impl()
         {
             close(fd);
+        }
+
+        void install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+            rx_listener = func;
+        }
+
+        void install_tx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+            tx_listener = func;
         }
 
         static auto available_ports() -> std::vector<SerialInfo>
@@ -63,10 +74,12 @@ namespace ssp
             return retval;
         }
 
-        void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits)
+        void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
         {
             struct termios params;
             memset(&params, 0, sizeof(params));
+
+            timeout_ms_ = timeout_ms;
 
             //configure input flags
             params.c_iflag = IGNPAR |   //
@@ -135,28 +148,27 @@ namespace ssp
             tcsetattr(fd, TCSANOW, &params);
         }
 
-        auto write(std::vector<uint8_t> const &data, NeedFlush f) -> size_t
+        auto write(std::vector<uint8_t> const &data) -> size_t
         {
-            ::write(fd, data.data(), data.size());
-            if (f == NeedFlush::YES) {
-                flush();
-            }
-            return 0;
-        }
-
-        void flush()
-        {
+            auto written = ::write(fd, data.data(), data.size());
             tcflush(fd, TCIFLUSH);
+            if (tx_listener != nullptr) {
+                tx_listener(data);
+            }
+            return written;
         }
 
-        auto read(unsigned timeout_ms) -> std::vector<uint8_t>
+        auto read() -> std::vector<uint8_t>
         {
             std::vector<uint8_t> retval;
-            read(retval, timeout_ms);
+            read(retval);
+            if (rx_listener != nullptr) {
+                rx_listener(retval);
+            }
             return retval;
         }
 
-        void read(std::vector<uint8_t> &buffer, unsigned timeout_ms)
+        void read(std::vector<uint8_t> &buffer)
         {
             uint8_t temp[128];
             auto start = std::chrono::steady_clock::now();
@@ -165,7 +177,7 @@ namespace ssp
                 for (auto i = 0; i < res; ++i) {
                     buffer.push_back(temp[i]);
                 }
-            } while (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < timeout_ms);
+            } while (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count() < timeout_ms_);
         }
 
     };
@@ -174,28 +186,35 @@ namespace ssp
         return SerialPort::impl::available_ports();
     }
 
-    SerialPort::SerialPort(std::string const &id, Baudrate baud, Parity par, Databits dbits, Stopbits sbits) :
-        m_pimpl{std::make_unique<impl>(id, baud, par, dbits, sbits)} {};
+    SerialPort::SerialPort(std::string const &id, Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms) :
+        pimpl_{std::make_unique<impl>(id, baud, par, dbits, sbits, timeout_ms)} {};
+    
     SerialPort::~SerialPort()  = default;
 
-    void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits) {
-        m_pimpl->set_params(baud, par, dbits, sbits);
+    SerialPort::SerialPort(SerialPort &&rhs) = default;
+
+    void SerialPort::set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms) {
+        pimpl_->set_params(baud, par, dbits, sbits, timeout_ms);
     }
 
-    auto SerialPort::write(std::vector<uint8_t> const& data, NeedFlush f) -> size_t {
-        return m_pimpl->write(data, f);
+    auto SerialPort::write(std::vector<uint8_t> const& data) -> size_t {
+        return pimpl_->write(data);
     }
 
-    void SerialPort::flush() {
-        m_pimpl->flush();
+    auto SerialPort::read() -> std::vector<uint8_t> {
+        return pimpl_->read();
     }
 
-    auto SerialPort::read(unsigned int timeout_ms) -> std::vector<uint8_t> {
-        return m_pimpl->read(timeout_ms);
+    void SerialPort::read(std::vector<uint8_t> &buffer) {
+        pimpl_->read(buffer);
     }
 
-    void SerialPort::read(std::vector<uint8_t> &buffer, unsigned int timeout_ms) {
-        m_pimpl->read(buffer, timeout_ms);
+    void SerialPort::install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+        pimpl_->install_rx_listener(func);
+    }
+
+    void SerialPort::install_tx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+        pimpl_->install_tx_listener(func);
     }
 
 }
