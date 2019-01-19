@@ -40,11 +40,13 @@ class SerialPort::impl
     Stopbits sbits_;
     unsigned timeout_ms_;
     unsigned inter_byte_timeout_ms_ = 50;
+    std::function<void(const std::vector<uint8_t>&)> rx_listener = nullptr;
+    std::function<void(const std::vector<uint8_t>&)> tx_listener = nullptr;
 
 public:
     static auto available_ports() -> std::vector<SerialInfo>
     {
-        std::vector<SerialInfo> retval;
+		auto retval = std::vector<SerialInfo>{};
         for (unsigned i = 0; i <= 255; ++i) {
 
         }
@@ -62,10 +64,11 @@ public:
              dbits_{dbits},
              sbits_{sbits},
              timeout_ms_{timeout}
-    {
-        std::string long_prefix = R"(\\.\)";
-        std::string prefix = "COM";
-        std::string port_name = id;
+	{
+		auto long_prefix = std::string{R"(\\.\)"};
+		auto prefix = std::string{ "COM" };
+		auto port_name = std::string{ id };
+
         if ( (id.compare(0, prefix.size(), prefix) == 0) && (id.size() > 4) ) {
             port_name.insert(0, long_prefix);
         }
@@ -88,6 +91,14 @@ public:
     ~impl()
     {
         CloseHandle(hserial_); //Closing the Serial Port
+    }
+
+    void install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+        rx_listener = func;
+    }
+
+    void install_tx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+        tx_listener = func;
     }
 
     void set_params(Baudrate baud, Parity par, Databits dbits, Stopbits sbits, unsigned timeout_ms)
@@ -136,6 +147,9 @@ public:
         if (!WriteFile(hserial_, &data[0], data.size(), &n_bytes_writen, NULL)) {
             throw SerialErrorIO();
         }
+        if (tx_listener != nullptr) {
+            tx_listener(data);
+        }
         return static_cast<size_t>(n_bytes_writen);
     }
 
@@ -152,6 +166,9 @@ public:
     {
         std::vector<uint8_t> retval;
         read(retval);
+        if (rx_listener != nullptr) {
+            rx_listener(retval);
+        }
         return retval;
     }
 
@@ -302,7 +319,7 @@ void SerialPort::set_parity(Parity par)
     pimpl_->set_parity(par);
 }
 
-void SerialPort::set_databits(Databits dbits)
+void SerialPort::set_databits(Databits dbits)  
 {
     pimpl_->set_databits(dbits);
 }
@@ -315,6 +332,14 @@ void SerialPort::set_stopbits(Stopbits sbits)
 void SerialPort::set_timeout(unsigned timeout_ms)
 {
     pimpl_->set_timeout(timeout_ms);
+}
+
+void SerialPort::install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+    pimpl_->install_rx_listener(func);
+}
+
+void SerialPort::install_tx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
+    pimpl_->install_tx_listener(func);
 }
 
 }

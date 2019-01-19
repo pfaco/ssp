@@ -24,12 +24,13 @@
 
 ///@file
 
-#ifndef SIMPLE_SerialPort_SERIAL_H
-#define SIMPLE_SerialPort_SERIAL_H
+#ifndef SIMPLE_SERIAL_PORT_H
+#define SIMPLE_SERIAL_PORT_H
 
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 
 namespace ssp
 {
@@ -99,7 +100,13 @@ public:
                 Stopbits sbits = Stopbits::_1,
                 unsigned timeout_ms = 5000);
 
+    SerialPort(SerialPort &&rhs);
+
     ~SerialPort();
+
+    void install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func);
+
+    void install_tx_listener(std::function<void(const std::vector<uint8_t>&)> func);
 
     void set_baud(Baudrate baud);
 
@@ -157,38 +164,30 @@ private:
     std::unique_ptr<impl> pimpl_;
 };
 
-class SerialErrorOpening : public std::exception
+struct SerialErrorOpening : public std::exception
 {
-public:
-    const char* what() const throw()
-    {
+    const char* what() const noexcept override {
         return "error opening serial port";
     }
 };
 
-class SerialErrorIO : public std::exception
+struct SerialErrorIO : public std::exception
 {
-public:
-    const char* what() const throw()
-    {
+    const char* what() const noexcept override {
         return "IO error in serial port operation";
     }
 };
 
-class SerialErrorNotOpen : public std::exception
+struct SerialErrorNotOpen : public std::exception
 {
-public:
-    const char* what() const throw()
-    {
+    const char* what() const noexcept override {
         return "serial port is not open";
     }
 };
 
-class SerialErrorConfig : public std::exception
+struct SerialErrorConfig : public std::exception
 {
-public:
-    const char* what() const throw()
-    {
+    const char* what() const noexcept override {
         return "error while configuring serial port";
     }
 };
