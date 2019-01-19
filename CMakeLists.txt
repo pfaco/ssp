@@ -9,8 +9,6 @@ add_subdirectory(examples)
 ## Target library
 if(PLATFORM_IS_CYGWIN)
     add_library(${PROJECT_NAME} src/serial_win32.cpp)
-elseif (APPLE)
-    add_library(${PROJECT_NAME} src/serial_macos.cpp)
 elseif(UNIX)
     add_library(${PROJECT_NAME} src/serial_linux.cpp)
 else()
@@ -44,9 +42,9 @@ install(FILES
 install(EXPORT
             ${PROJECT_NAME}
         DESTINATION
-            lib/ssp)
+            lib/cmake/ssp)
 
 install(FILES
             ${CMAKE_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake
         DESTINATION
-            lib/ssp)
+            lib/cmake/ssp)
