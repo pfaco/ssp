@@ -98,7 +98,7 @@ public:
                 Parity par = Parity::NONE,
                 Databits dbits = Databits::_8,
                 Stopbits sbits = Stopbits::_1,
-                unsigned timeout_ms = 5000);
+                unsigned timeout_ms = 2000);
 
     SerialPort(SerialPort &&rhs);
 
@@ -164,31 +164,33 @@ private:
     std::unique_ptr<impl> pimpl_;
 };
 
-struct SerialErrorOpening : public std::exception
-{
-    const char* what() const noexcept override {
+struct SerialErrorOpening : public std::exception {
+    const char * what() const noexcept override {
         return "error opening serial port";
     }
 };
 
-struct SerialErrorIO : public std::exception
-{
-    const char* what() const noexcept override {
+struct SerialErrorIO : public std::exception {
+    const char * what() const noexcept override {
         return "IO error in serial port operation";
     }
 };
 
-struct SerialErrorNotOpen : public std::exception
-{
-    const char* what() const noexcept override {
+struct SerialErrorNotOpen : public std::exception {
+    const char * what() const noexcept override {
         return "serial port is not open";
     }
 };
 
-struct SerialErrorConfig : public std::exception
-{
-    const char* what() const noexcept override {
+struct SerialErrorConfig : public std::exception {
+    const char * what() const noexcept override {
         return "error while configuring serial port";
+    }
+};
+
+struct SerialErrorTimeout : public std::exception {
+    const char * what() const noexcept override {
+        return "serial timeout error";
     }
 };
 

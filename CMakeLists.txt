@@ -42,9 +42,9 @@ install(FILES
 install(EXPORT
             ${PROJECT_NAME}
         DESTINATION
-            lib/ssp)
+            lib/cmake/ssp)
 
 install(FILES
             ${CMAKE_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake
         DESTINATION
-            lib/ssp)
+            lib/cmake/ssp)

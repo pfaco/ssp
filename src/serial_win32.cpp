@@ -27,6 +27,8 @@
 #include <ssp/serial.h>
 #include <sstream>
 #include <windows.h>
+#include <iostream>
+#include <array>
 
 namespace ssp
 {
@@ -90,7 +92,7 @@ public:
 
     ~impl()
     {
-        CloseHandle(hserial_); //Closing the Serial Port
+        CloseHandle(hserial_);
     }
 
     void install_rx_listener(std::function<void(const std::vector<uint8_t>&)> func) {
@@ -157,7 +159,7 @@ public:
     {
         COMSTAT comstat;
         if (!ClearCommError(hserial_, NULL, &comstat)) {
-            throw SerialErrorIO();
+            throw SerialErrorIO{};
         }
         return comstat.cbInQue;
     }
@@ -174,24 +176,33 @@ public:
 
     void read(std::vector<uint8_t> &buffer)
     {
-        uint8_t temp[512];
-        DWORD amount_read;
+        std::array<uint8_t,128> temp;
+        DWORD amount_read = 0;
+        auto buffer_initial_size = buffer.size();
 
-        if (!ReadFile(hserial_, temp, sizeof(temp), &amount_read, NULL)) {
-            throw SerialErrorIO();
-        }
+        do {
 
-        for (auto i = 0; i < amount_read; ++i) {
-            buffer.push_back(temp[i]);
-        }
+            if (!ReadFile(hserial_, temp.data(), temp.size(), &amount_read, NULL)) {
+                throw SerialErrorIO{};
+            }
+
+            if (amount_read == 0 && buffer.size() == buffer_initial_size) {
+                throw SerialErrorTimeout{};
+            }
+
+            for (auto i = 0; i < amount_read; ++i) {
+                buffer.push_back(temp[i]);
+            }
+
+        } while (amount_read == temp.size());
     }
 
 private:
     void configure_timeout()
     {
         COMMTIMEOUTS com_timeout = {0};
-        if (!GetCommTimeouts(hserial_,&com_timeout)) {
-            throw SerialErrorConfig();
+        if (!GetCommTimeouts(hserial_, &com_timeout)) {
+            throw SerialErrorConfig{};
         }
 
         com_timeout.ReadIntervalTimeout = inter_byte_timeout_ms_;
@@ -199,7 +210,7 @@ private:
         com_timeout.ReadTotalTimeoutMultiplier = 0;
 
         if (!SetCommTimeouts(hserial_, &com_timeout)) {
-            throw SerialErrorConfig();
+            throw SerialErrorConfig{};
         }
     }
 

@@ -29,7 +29,7 @@
 auto main() -> int {
 
     try {
-        ssp::SerialPort serial("COM8", ssp::Baudrate::_300, ssp::Parity::EVEN, ssp::Databits::_7, ssp::Stopbits::_1);
+        auto serial = ssp::SerialPort("COM6", ssp::Baudrate::_300, ssp::Parity::EVEN, ssp::Databits::_7, ssp::Stopbits::_1);
         serial.write({0x2f, 0x3f, 0x21, 0x0d, 0x0a});
         auto data = serial.read();
         std::cout << "RX: ";
@@ -43,6 +43,8 @@ auto main() -> int {
     } catch (ssp::SerialErrorIO const& e) {
         std::cout << e.what() << std::endl;
     } catch (ssp::SerialErrorNotOpen const& e) {
+        std::cout << e.what() << std::endl;
+    } catch (ssp::SerialErrorTimeout const& e) {
         std::cout << e.what() << std::endl;
     } catch (...) {
         std::cout << "unexpected exception" << std::endl;
